@@ -152,11 +152,7 @@ void Layout(void)
 
     /* Max lines */
     CrtLocate(PS_ROW, PS_LIN_MAX);
-    putint("%04d", cf_mx_lines);
-
-    /* Max columns */
-    CrtLocate(PS_ROW, PS_COL_MAX);
-    putint("%02d", 1 + ln_vis);
+    putint("%05d", cf_mx_lines);
 
 #if CRT_LONG
     /* Ruler: starts at the gutter column so it tracks line-number visibility */
@@ -1563,8 +1559,6 @@ int CtxMenu(int scol, int srow)
     done = 0;
     result = K_ESC;
 
-    /* If opened by right-click, drain the button release before we
-       draw, so the still-held button doesn't instantly cancel the menu */
     if (mouse_ok) {
         int mc, mr;
         while (MouseGetState(&mc, &mr) & 2) {}
