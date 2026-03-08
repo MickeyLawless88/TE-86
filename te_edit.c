@@ -36,9 +36,9 @@ int BfEdit(void)
     len = old_len = strlen(ln_dat);
     run = upd_col = upd_now = upd_cur = 1;
     upd_lin = spc = 0;
-    
-    /* Force update of length display when entering a line */
-    CrtLocate(PS_ROW, PS_COL_NOW);
+
+    /* Show line length in Col:/XX on entry */
+    CrtLocate(PS_ROW, PS_COL_MAX);
     putint("%02d", len);
 
     if (box_shc > len)
@@ -52,10 +52,10 @@ int BfEdit(void)
             if (spc) { putchr(' '); spc = 0; }
         }
 
-        /* Print line length in status bar */
+        /* Print line length in Col:/XX field */
         if (upd_now) {
             upd_now = 0;
-            CrtLocate(PS_ROW, PS_COL_NOW);
+            CrtLocate(PS_ROW, PS_COL_MAX);
             putint("%02d", len);
         }
 
