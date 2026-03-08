@@ -121,7 +121,6 @@ void Loop(void)
                         --box_shr;
                     }
                     else {
-                        /* Scroll up */
                         Refresh(0, lp_cur - box_shr);
                     }
                     if (box_shc == 9999)
@@ -176,15 +175,24 @@ void Loop(void)
                 RefreshAll();
                 break;
 
-            /* ---- CR: split line ---- */
+            /* ---- CR: split line at cursor position ---- */
             case K_CR: {
                 int indent = 0;
                 int llen   = 0;
                 int has_text = 0;
+                int split_pos;
                 char ibuf[256];
                 char *src = lp_arr[lp_cur];
 
-                /* Check if line has any non-whitespace content */
+                /* Split at cursor column, clamped to actual line length.
+                   box_shc is reset to 0 on Up/Down navigation so pressing
+                   Enter right after arriving on a line pushes all text down.
+                   If the user moved right first, it splits at that column. */
+                split_pos = strlen(lp_arr[lp_cur]);
+                if (box_shc < split_pos)
+                    split_pos = box_shc;
+
+                /* Check if current line has any non-whitespace content */
                 {
                     char *p = src;
                     while (*p) {
@@ -196,11 +204,12 @@ void Loop(void)
                     }
                 }
 
-                /* Auto-indent only if the line has actual text */
-                if (cf_indent && has_text) {
-                    while (*src == ' ' && llen < ln_max) {
-                        ibuf[llen++] = ' ';
-                        ++src;
+                /* Auto-indent: copy leading whitespace from current line.
+                   Only applies when splitting at end-of-line (cursor at end)
+                   so new blank lines inherit the indentation level. */
+                if (cf_indent && has_text && split_pos == (int)strlen(lp_arr[lp_cur])) {
+                    while ((*src == ' ' || *src == '\t') && llen < ln_max) {
+                        ibuf[llen++] = *src++;
                     }
                 }
 
@@ -217,26 +226,30 @@ void Loop(void)
                 ibuf[llen] = '\0';
                 indent = llen;
 
-                if (SplitLine(lp_cur, box_shc)) {
-                    /* Prepend indent to new line */
+                if (SplitLine(lp_cur, split_pos)) {
+                    /* Prepend auto-indent prefix to new line if at end-of-line */
                     if (indent) {
                         char tmp[256];
                         strcpy(tmp, ibuf);
                         strcat(tmp, lp_arr[lp_cur + 1]);
                         ModifyLine(lp_cur + 1, tmp);
+                        box_shc = indent;
+                    }
+                    else {
+                        /* Mid-line or start-of-line split: cursor lands at
+                           the start of the text on the new line (skip leading
+                           whitespace so it sits where the content begins). */
+                        char *p = lp_arr[lp_cur + 1];
+                        box_shc = 0;
+                        while (*p == ' ' || *p == '\t') { ++p; ++box_shc; }
                     }
 
                     ++lp_cur;
-                    box_shc = indent;
 
-                    if (box_shr < box_rows - 1) {
+                    if (box_shr < box_rows - 1)
                         ++box_shr;
-                        Refresh(box_shr, lp_cur);
-                    }
-                    else {
-                        Refresh(0, lp_cur - box_shr);
-                    }
 
+                    RefreshAll();
                     lp_chg = 1;
                 }
                 break;
