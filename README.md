@@ -1,568 +1,371 @@
-# TE-86 — Text Editor for MS-DOS
+# TE-86 — MS-DOS Text Editor
 
-**TE-86** is a full-screen text editor for MS-DOS, compiled with Turbo C 2.0 or
-Turbo C++ 1.0.  It is a DOS port of the **TE** editor originally written for
-CP/M by Miguel Garcia / FloppySoftware, extended with syntax highlighting,
-mouse support, a graphical file browser, a context menu, hard-tab support,
-and numerous other improvements by Mickey W. Lawless.
+**TE-86** is a port of Miguel Garcia's [TE text editor for CP/M](https://github.com/floppysoftware/te)
+to MS-DOS, compiled with Borland Turbo C 2.0 (small memory model).
 
----
+Original CP/M version © 2015–2021 Miguel Garcia / FloppySoftware  
+DOS port © 2024–2026 Mickey W. Lawless
 
-## Table of Contents
-
-1. [Requirements](#requirements)
-2. [Building](#building)
-3. [Usage](#usage)
-4. [Screen Layout](#screen-layout)
-5. [Keyboard Reference](#keyboard-reference)
-6. [Mouse Support](#mouse-support)
-7. [Block Selection](#block-selection)
-8. [Context Menu](#context-menu)
-9. [Clipboard](#clipboard)
-10. [Find and Go To Line](#find-and-go-to-line)
-11. [Macros](#macros)
-12. [Syntax Highlighting](#syntax-highlighting)
-13. [File Browser](#file-browser)
-14. [Configuration](#configuration)
-15. [Config File (TE-86.CFG)](#config-file-te-86cfg)
-16. [TECF — Config Patcher](#tecf--config-patcher)
-17. [Limitations](#limitations)
-18. [License](#license)
-19. [Changelog](#changelog)
-
----
-
-## Requirements
-
-- MS-DOS 3.3 or later (or DOSBox 0.74+)
-- 8086-class CPU or better
-- CGA, EGA, VGA, MDA, or Hercules display adapter
-- Turbo C 2.0 or Turbo C++ 1.0 (to build from source)
-- Optional: Microsoft-compatible INT 33h mouse driver (MOUSE.COM / MOUSE.SYS)
-
----
-
-## Building
-
-1. Edit `build.bat` and set `TC_DIR` to match your Turbo C installation
-   (default: `C:\TC`).
-2. Run:
-
-```
-build.bat
-```
-
-This compiles all source modules and links them into `te86.exe`.  Object files
-are cleaned automatically at the start of each build.
-
-The memory model is **small** (`-ms`).  If you need to edit very large files,
-change `set MODEL=s` to `set MODEL=l` (large model) in `build.bat`.
+Licensed under the GNU General Public License v2 or later.
 
 ---
 
 ## Usage
 
 ```
-te86 [filename]
+te-86 [filename]
 ```
 
-If a filename is supplied on the command line, that file is opened immediately.
-If it does not exist, a new empty buffer is created with that name.  If no
-filename is given, the editor starts with an empty unnamed buffer and the File
-Browser opens so you can pick a file.
+If no filename is given, the editor starts with an empty buffer.  
+On exit you will be prompted to save if unsaved changes exist.
 
 ---
 
-## Screen Layout
-
-```
- filename.c          --- | Lin:0042/0168/6000 Col:05/76 Len:9
- :.........:.........:.........:.........:.........  (ruler)
- 0042  int main(void) {                              (text area)
- 0043      return 0;
- ...
- ──────────────────────────────────────────────────  (separator)
- Esc = menu                                C/C++     (status bar)
-```
-
-**Title / status line (row 0)**
-
-| Field | Meaning |
-|-------|---------|
-| filename | Current file name (`(new)` if unsaved) |
-| `---` / `CHG` | Unsaved-change indicator |
-| `Lin:cur/total/max` | Current line / total lines / file line limit |
-| `Col:cur/width` | Cursor column / visible editing width |
-| `Len:n` | Length of the current line |
-
-**Ruler (row 1)** — shows column positions; tab stops are marked with the
-ruler-tab character (default `!`).
-
-**Text area** — the main editing region.  Line numbers are shown in the left
-gutter when enabled (toggleable via Config menu, option 3).
-
-**Status / hint bar (bottom row)** — shows `Esc = menu` while editing, prompts
-during operations, and displays the detected language name (e.g. `C/C++`,
-`Pascal`) on the right when syntax highlighting is active.
-
----
-
-## Keyboard Reference
-
-### Navigation
+## Key Bindings (defaults)
 
 | Key | Action |
 |-----|--------|
-| Arrow keys | Move cursor one character / line |
-| `Home` | Beginning of line |
-| `End` | End of line |
-| `Ctrl+T` | Top of file |
-| `Ctrl+W` | Bottom of file |
-| `PgUp` | Scroll up one screen |
-| `PgDn` | Scroll down one screen |
-| `Ctrl+A` | Move left one word |
-| `Ctrl+Y` | Move right one word |
-| `Ctrl+G` | Go to line number (prompts) |
+| Arrow keys | Move cursor |
+| Home / End | Beginning / end of line |
+| Ctrl-T | Top of file |
+| Ctrl-B | Bottom of file |
+| PgUp / PgDn | Page up / page down |
+| Enter | New line (splits at cursor) |
+| Backspace | Delete left |
+| Del | Delete right |
+| Tab | Indent (expand to spaces, or insert hard tab) |
+| Ctrl-F | Find |
+| Ctrl-N | Find next |
+| Ctrl-G | Go to line number |
+| Ctrl-A | Word left |
+| Ctrl-E | Word right |
+| Ctrl-X | Cut line |
+| Ctrl-C | Copy line |
+| Ctrl-V | Paste line |
+| Ctrl-D | Delete line |
+| Ctrl-L | Clear clipboard |
+| Ctrl-K | Block start |
+| Ctrl-O | Block end |
+| Ctrl-U | Block unset |
+| Ctrl-M | Run macro |
+| Esc | Main menu |
 
-### Editing
-
-| Key | Action |
-|-----|--------|
-| Printable keys | Insert character at cursor |
-| `Enter` | New line (with auto-indent if enabled) |
-| `Backspace` | Delete character to the left |
-| `Delete` | Delete character under cursor |
-| `Ctrl+D` | Delete entire current line |
-| `Tab` | Insert tab (spaces or hard tab depending on config) |
-
-### Clipboard
-
-| Key | Action |
-|-----|--------|
-| `Ctrl+C` | Copy current line (or block if selected) |
-| `Ctrl+X` | Cut current line (or block if selected) |
-| `Ctrl+V` | Paste clipboard above current line |
-| `Ctrl+L` | Clear clipboard |
-
-### Block Selection
-
-| Key | Action |
-|-----|--------|
-| `Ctrl+B` | Mark block **start** at current line |
-| `Ctrl+E` | Mark block **end** at current line |
-| `Ctrl+U` | Unset / clear block selection |
-
-### Search
-
-| Key | Action |
-|-----|--------|
-| `Ctrl+F` | Find (prompts for search string) |
-| `Ctrl+N` | Find next occurrence |
-
-### File / System
-
-| Key | Action |
-|-----|--------|
-| `Esc` | Open main menu |
-| `Ctrl+R` | Open context menu (Copy / Cut / Paste popup) |
-| `Ctrl+M` | Run macro file |
+Key bindings for Ctrl sequences and extended keys (arrows, Home, End,
+PgUp, PgDn, Del) are stored in the configuration block and can be
+patched with the TECF utility.
 
 ---
 
-## Mouse Support
+## Configuration File
 
-TE-86 supports any MS-DOS compatible mouse driver (INT 33h).  The mouse cursor
-is displayed automatically if a driver is detected at startup.
+TE-86 reads and writes `TE-86.CFG` in the current directory on startup
+and when "Save" is selected from the Configuration menu (Esc → Config → S).
 
-| Action | Effect |
-|--------|--------|
-| **Left-click** | Move the text cursor to the clicked position |
-| **Right-click** | Open the Cut / Copy / Paste context menu |
-
-Drag-selection via mouse is not supported; use `Ctrl+B` / `Ctrl+E` to mark
-blocks by keyboard.  If no mouse driver is present, the editor runs normally
-with keyboard only.
+If no `.CFG` file is present, compiled-in defaults are used.  The file
+is a raw binary block — use the TECF patcher to edit it externally, or
+use the in-editor Configuration menu.
 
 ---
 
-## Block Selection
+## New Features (DOS Port)
 
-A block is a contiguous range of whole lines.  Blocks are used for cut, copy,
-and context-menu operations.
+### Mouse Support
 
-1. Move the cursor to the first line you want to select.
-2. Press **`Ctrl+B`** to mark the block start.
-3. Move the cursor to the last line you want to select.
-4. Press **`Ctrl+E`** to mark the block end.
+TE-86 supports any INT 33h-compatible mouse driver.
 
-The selected lines are highlighted in reverse video.  Press **`Ctrl+U`** to
-clear the selection without modifying text.
+- **Left-click** moves the cursor to the clicked position.
+- **Right-click** pastes the clipboard at the clicked position.
+- Mouse support is detected automatically at startup; the editor
+  operates normally without a mouse.
 
-Once a block is marked, `Ctrl+C` copies it, `Ctrl+X` cuts it, and `Ctrl+R`
-(context menu) gives you all three options in a popup.
+INT 33h functions used: `AX=0000` (reset/detect), `AX=0001` (show),
+`AX=0002` (hide), `AX=0003` (get position/buttons), `AX=0004` (set position).
 
 ---
 
-## Context Menu
+### Syntax Highlighting (`OPT_HILIGHT`)
 
-Press **`Ctrl+R`** or **right-click** anywhere in the text area to open the
-Cut / Copy / Paste popup menu.
+Syntax highlighting is applied automatically based on file extension.
+The language name is shown right-justified on the system line while editing.
 
-```
-+------+
-| Copy |
-| Cut  |
-| Paste|
-+------+
-```
-
-Navigate with **Up / Down** arrow keys and press **Enter** to confirm, or press
-the first letter (`C` for Copy, `X` for Cut, `V` for Paste) as a shortcut.
-Press **Esc** or click outside the box to cancel.
-
-- With a block active: Copy and Cut operate on the entire selected block.
-- Without a block: Copy and Cut operate on the current line only.
-- Paste is always available when the clipboard is non-empty.
-
----
-
-## Clipboard
-
-The clipboard holds a single line of text.  It is populated by Cut and Copy
-operations (keyboard or context menu) and inserted by Paste.  Paste inserts
-the clipboard line **above** the current line and moves the cursor down.
-`Ctrl+L` clears the clipboard.
-
----
-
-## Find and Go To Line
-
-**Find (`Ctrl+F`)** — prompts for a search string (up to 31 characters) on the
-status bar.  The search is case-sensitive and wraps around from the bottom of
-the file back to the top.  Press `Ctrl+N` to repeat the last search.
-
-**Go to line (`Ctrl+G`)** — prompts for a line number.  The cursor jumps to
-that line immediately.
-
----
-
-## Macros
-
-TE-86 supports simple keystroke macro files.  A macro file is a plain text file
-with the extension `.m`.
-
-Press **`Ctrl+M`** to run a macro.  The editor prompts for the macro filename.
-During execution, auto-indent and auto-list are suspended and restored when the
-macro finishes.
-
-Macro file syntax:
-
-| Sequence | Meaning |
-|----------|---------|
-| Any printable text | Inserted literally into the buffer |
-| `{key_name}` | Simulates pressing the named key |
-| `{key_name:arg}` | Key with argument (e.g. find string) |
-| `\\` | Literal backslash |
-
-The **Insert** option in the main menu (`Esc → I`) uses the same macro engine
-to insert the contents of any file verbatim into the current buffer at the
-cursor position.
-
----
-
-## Syntax Highlighting
-
-Syntax highlighting is enabled by default for recognised file types.  The
-language is detected automatically from the file extension when a file is
-opened or saved.
-
-### Supported Languages and Extensions
+**Supported languages and extensions:**
 
 | Language | Extensions |
 |----------|-----------|
-| C / C++ | `.c` `.h` `.cpp` `.hpp` `.cc` |
-| Assembly (x86) | `.asm` `.s` `.inc` |
-| BASIC | `.bas` |
-| Pascal | `.pas` `.pp` |
-| FORTRAN | `.f` `.for` `.f77` `.f90` `.ftn` |
-| PL/I | `.pli` `.pl1` |
-| COBOL | `.cob` `.cbl` `.cobol` |
-| PL/M (Intel 8080/8086) | `.plm` `.plm86` `.plm51` |
+| C / C++ | `.C` `.H` `.CPP` `.CC` |
+| Assembly (x86) | `.ASM` `.S` |
+| BASIC | `.BAS` |
+| Pascal | `.PAS` |
+| FORTRAN 77/90 | `.F` `.FOR` `.F77` `.F90` |
+| PL/I | `.PLI` `.PL1` |
+| COBOL | `.COB` `.CBL` |
+| PL/M | `.PLM` |
 
-### Colour Attributes (CGA/EGA/VGA)
+**Colour attributes (CGA/EGA/VGA):**
 
 | Token type | Colour |
 |------------|--------|
-| Normal text | Light grey |
-| Keywords | Bright cyan |
-| String / char literals | Bright yellow |
-| Comments | Bright green |
-| Numbers | Bright magenta |
-| Preprocessor directives | Bright blue |
-| Operators | Bright red |
+| Normal text | Light grey on black |
+| Keywords | Bright cyan on black |
+| Strings / char literals | Bright yellow on black |
+| Comments | Bright green on black |
+| Numbers | Bright magenta on black |
+| Preprocessor | Bright blue on black |
+| Operators | Bright red on black |
 
-### Monochrome Mode (MDA / Hercules)
+**Monochrome attributes (MDA/Hercules):**
 
-When **Hilite mono** is enabled (Config option 9), TE-86 uses MDA-safe
-attributes instead of colours:
+MDA hardware supports four reliable attribute states. Token categories
+are collapsed to three visible states:
 
 | Token type | Attribute |
 |------------|-----------|
-| Keywords, preprocessor | Bold |
-| Strings / char literals | Bold + underline |
-| Comments | Underline |
+| Keywords, preprocessor | Bright/bold |
+| Strings / char literals | Bright + underline |
+| Comments | Underline only |
 | Everything else | Normal |
 
-### Toggling Highlighting
+**Multi-line block comments** are tracked across lines via the
+`hl_in_comment` global; comment colour correctly continues onto
+continuation lines without re-scanning from the top of the file.
 
-- Config option **8** — turn highlighting on or off globally.
-- Config option **9** — switch between colour and monochrome highlight mode.
-
-The current language name is shown in the bottom-right corner of the status bar
-while a recognised file is open.
-
----
-
-## File Browser
-
-When you choose **Open** from the main menu (`Esc → O`) and no filename is
-typed, the **File Browser** opens automatically.  It shows a scrollable,
-three-column view of the files and subdirectories in the current directory.
-
-- **Arrow keys** navigate the file list.
-- **Enter** selects the highlighted file or enters a subdirectory.
-- **Esc** cancels and returns to the filename prompt where you can type a path
-  manually.
+Highlighting can be toggled on/off and between colour and monochrome
+from the Configuration menu (options `8` and `9`).
 
 ---
 
-## Configuration
+### Hard Tab Support
 
-Press **`Esc`** then **`C`** to open the Configuration menu.  All settings take
-effect immediately.  Press **`S`** inside the Config menu to save the current
-settings to `TE-86.CFG` so they persist across sessions.
+When hard tabs are enabled (`cf_hard_tabs = 1`), ASCII `0x09` tab
+characters are preserved in the line buffer rather than expanded to
+spaces. Files containing hard tabs round-trip through load and save
+unchanged.
 
-| Option | Setting | Description |
-|--------|---------|-------------|
-| 1 | Tab width (1–10) | Number of spaces per soft tab stop |
-| 2 | Line number width (0–6) | Gutter width in columns (0 hides gutter) |
-| 3 | Line numbers ON/OFF | Show or hide line numbers in the gutter |
-| 4 | Auto-indent ON/OFF | New lines inherit the indentation of the line above |
-| 5 | Auto-list ON/OFF | New lines after a list-bullet line start with a bullet |
-| 6 | List bullets | Characters recognised as list-bullet starters (e.g. `- * >`) |
-| 7 | C-lang complete ON/OFF | Automatic closing of `{` / `(` / `[` brackets |
-| 8 | Syntax highlight ON/OFF | Enable or disable syntax colouring |
-| 9 | Hilite mono ON/OFF | Use bold/underline instead of colour (for MDA/Hercules) |
-| A | Ruler character | Character used for ruler fill (default `.`) |
-| B | Ruler tab character | Character marking tab positions on ruler (default `!`) |
-| C | Line number separator | Character between line numbers and text (default `\|`) |
-| D | Horizontal line character | Character used for horizontal dividers (default `-`) |
-| E | Hard tabs ON/OFF | Store literal ASCII 0x09 tab characters instead of expanding |
-| S | Save and exit | Write settings to `TE-86.CFG` and return to editing |
+When hard tabs are disabled (default), the Tab key expands to spaces
+up to the next tab stop, and tab characters in loaded files are
+converted to spaces (with a one-time status bar warning).
+
+Toggle from the Configuration menu (option `E`).
 
 ---
 
-## Config File (TE-86.CFG)
+### Horizontal Scrolling
 
-When `TE-86.CFG` is found in the current directory at startup, TE-86 loads it
-and overrides the compiled-in defaults.  The file is written by choosing
-**S** (Save) inside the Config menu.
+Lines longer than the visible editing area can be viewed and edited.
+The view scrolls automatically as the cursor moves past the right or
+left edge. The horizontal scroll offset (`box_hsc`) is stored globally
+and reset appropriately on navigation, line splits, and file load.
 
-The config block is 142 bytes and is version-stamped.  Fields added in
-versions 3 and 4 (line-number visibility, highlighting flags, hard tabs) are
-loaded only when the file is large enough, so older config files remain
-compatible — new fields fall back to the compiled-in defaults.
-
-> **Important:** If you are changing compiled-in defaults (e.g. key bindings or
-> the line limit) and TE-86 appears to ignore the change, delete `TE-86.CFG`
-> from the working directory so the saved copy does not override the new
-> compiled values.
+The status bar Col display always shows the logical column within the
+line buffer, not the screen column.
 
 ---
 
-## TECF — Config Patcher
+### Line Number Display
 
-`TECF.EXE` is a standalone utility that patches configuration values directly
-inside the `TE86.EXE` binary without recompiling.
+Line numbers are shown in a configurable-width gutter at the left edge
+of the editor box. The gutter width is set by `cf_num` (default: 4,
+giving room for 3-digit line numbers plus a separator character).
+
+Line numbers can be toggled on/off from the Configuration menu
+(option `3`). When hidden, `cf_gutter` collapses to zero and the ruler
+and cursor positioning both adjust accordingly.
+
+---
+
+### Ruler Enhancements
+
+The ruler line (shown above the editor box) supports several
+language-specific column markers configurable from the Configuration
+menu:
+
+| Option | Description |
+|--------|-------------|
+| `F` | FORTRAN continuation column indicator (col 6) — on/off + character |
+| `G` | FORTRAN statement column indicator (col 7) — on/off + character |
+| `H` | COBOL comment/indicator column (col 7) — on/off + character |
+| `I` | Tab-stop line numbers — show two-digit tab ordinal at each tab stop |
+
+---
+
+### File Browser
+
+When opening a file (Esc → Open), a semi-graphical file browser is
+presented first. It shows the current directory contents in a
+scrollable 3-column dialog:
+
+- Directories are shown as `[NAME]` and sorted before files.
+- Arrow keys and the mouse navigate the listing.
+- Enter selects a file or enters a directory.
+- Esc from the browser falls back to the original typed-filename prompt.
+
+---
+
+### Direct Video RAM Output
+
+All character output uses direct far-pointer writes to video RAM
+(`VidPoke`) rather than BIOS TTY output (`INT 10h AH=0Eh`).
+
+- **Video segment auto-detected** at startup: BIOS data area byte
+  `0040:0049` is read; mode 7 (MDA 80×25) maps to segment `0xB000`,
+  all other modes to `0xB800`.
+- `CrtSetAttr()` stores the attribute in `crt_attr`; all subsequent
+  `CrtOut()` calls use it directly in the video RAM write.
+- Characters that would write past the last column are silently
+  dropped, preventing terminal auto-wrap from corrupting the separator
+  and system lines.
+
+---
+
+### Configuration Block Versioning
+
+The binary configuration block (`TE_CONF`) has been extended across
+three new versions while remaining backward compatible with older
+`.CFG` files:
+
+| Version | Size | New fields |
+|---------|------|-----------|
+| v2 (original) | 138 bytes | — |
+| v3 | 141 bytes | `cf_lnum_show`, `cf_hl_enable`, `cf_hl_mono` |
+| v4 | 142 bytes | `cf_hard_tabs` |
+| v5 | 149 bytes | `cf_fort_cont_en/chr`, `cf_fort_stmt_en/chr`, `cf_cobol_ind_en/chr`, `cf_tab_line_num` |
+
+`CfLoad()` reads only as many fields as the file contains; fields
+absent from older files retain their compiled-in defaults.
+
+---
+
+## Bug Fixes (DOS Port)
+
+### `te_crt.c`
+- `putch()` (BIOS TTY write, INT 10h AH=0Eh) ignores the current text
+  attribute entirely. Replaced with direct video RAM writes so
+  `CrtSetAttr()` takes effect correctly on all adapter types.
+- Syntax highlight colour changes now work on MDA/Hercules, CGA, EGA,
+  and VGA.
+
+### `te_edit.c`
+- **Line redraw** now calls `ModifyLine` + `Refresh` — the same
+  proven draw path used everywhere else in the editor — instead of a
+  hand-rolled partial redraw. This eliminates ghost characters,
+  duplicate text, and wrong-column writes that affected typing,
+  backspace, and delete.
+- Cursor column positioning uses `cf_gutter` so it tracks correctly
+  when line numbers are hidden.
+- `putchr('\b')` removed from the backspace handler (it fought with
+  the line redraw and corrupted the display).
+- Redundant `putchr(ch)` removed from the character insert path.
+
+### `te_file.c`
+- **"Line too long" no longer aborts file load.** Lines wider than
+  `LN_MAX_HARD` (255 chars) are silently truncated; excess characters
+  are drained with `fgetc()` so subsequent `fgets()` calls resume at
+  the correct file position. A one-time warning "Long line(s)
+  truncated" is shown.
+- Tab-conversion and illegal-character warnings are tracked with
+  independent counters so both messages are reported correctly.
+
+### `te_lines.c`
+- **`SplitLine` pointer aliasing bug fixed.** The original code passed
+  `lp_arr[line] + pos` directly to `AppendLine`. `AppendLine` →
+  `SetLine` shifts the `lp_arr[]` array so `lp_arr[line+1]` ends up
+  pointing at the original buffer; then truncating that buffer at `pos`
+  corrupted the new line, leaving it with length 0 or garbage content.
+  The fix copies the right portion into a fresh allocation before
+  calling `AppendLine`.
+
+### `te_loop.c`
+- **Enter key now splits at the cursor**, not always at end-of-line.
+  `split_pos` is set from `box_shc` (clamped to line length) rather
+  than `strlen(lp_arr[lp_cur])`.
+- **Auto-indent only applies to end-of-line splits.** When Enter is
+  pressed mid-line, the text after the cursor already carries its own
+  indentation; prepending the auto-indent prefix would double-indent it.
+- **Horizontal scroll (`box_hsc`) is always reset to 0** after a line
+  split so the new line is displayed from column 0 regardless of the
+  scroll position of the line above.
+- Cursor column positioning uses `cf_gutter` throughout.
+
+### `te_main.c`
+- `ln_max` is now always `LN_MAX_HARD` (255), decoupled from screen
+  width. Previously it was set to `cf_cols - cf_num - 1`, which caused
+  false "line too long" errors when loading files with lines wider than
+  the screen.
+- Screen geometry (`cf_rows`, `cf_cols`) is always taken from
+  `CrtGetSize()` hardware result after init, overriding any stale value
+  stored in the `.CFG` file.
+
+### `te_ui.c`
+- ESC key in `MenuConfig`: `K_ESC` (value 1012) was passed to
+  `toupper()` which truncates to `unsigned char` first, making
+  `1012 → 244 → not K_ESC`. Fixed by testing `_k == K_ESC` before
+  calling `toupper()`.
+- Single-character file extensions (`.C`, `.H`) produced a garbled
+  type tag `[C` with no closing bracket in the status bar. Fixed.
+- Operator colour noise: `* / - :` were incorrectly painted as
+  operators on declarations, negative literals, and struct member
+  access. Removed from the operator set; only unambiguous operators
+  remain: `+ = < > ! & | ^ ~ % ?`.
+- Ruler position did not track the line-number toggle; `Layout()` now
+  uses `cf_gutter` instead of `cf_num`.
+- Multi-line block comments: only the opening line was highlighted in
+  comment colour. Fixed by promoting `in_comment` from a local variable
+  to the global `hl_in_comment`.
+
+---
+
+## Removed Features
+
+### Context Menu (`CtxMenu`)
+The right-click context menu (Copy/Cut/Paste popup) has been removed.
+It was the source of display corruption bugs affecting the entire
+editing session. Right-click now pastes the clipboard directly at the
+clicked position. Ctrl+R is a no-op. Ctrl+C / Ctrl+X / Ctrl+V
+continue to work as before.
+
+---
+
+## Building
+
+Compile with Borland Turbo C 2.0, small memory model, targeting 8086:
 
 ```
-TECF te86.exe
+tcc -ms -1- -O te_main.c te_loop.c te_edit.c te_file.c te_lines.c \
+    te_misc.c te_keys.c te_crt.c te_ui.c te_mouse.c te_macro.c \
+    te_error.c te_conf.c
 ```
 
-TECF locates the `TE_CONF` marker in the executable and presents a menu of all
-patachable fields, including:
-
-- Screen dimensions (rows × columns)
-- File line limit (up to 6000)
-- Tab width
-- Auto-indent, auto-list, C-language completion
-- Ruler, vertical, and horizontal line characters
-- Key bindings for all 29 editor functions
-
-Changes are written back to the `.EXE` file immediately.  No recompile is
-needed.
+Output: `te_main.exe` (rename to `te-86.exe` as preferred).
 
 ---
 
-## Limitations
+## File Reference
 
-- **File size:** up to **6000 lines** (compiled-in default; can be raised by
-  editing `te_conf.c` or patching with TECF).
-- **Line length:** up to **255 characters** per line.  Lines longer than 255
-  characters are silently truncated on load with a one-time warning.
-- **Clipboard:** single-line only; the last line of a cut/copied block is what
-  ends up in the clipboard.
-- **Memory model:** small model by default, which limits total code + data to
-  64 KB each.  Switch to large model in `build.bat` if you hit memory errors
-  with very large files.
-- **Undo:** not supported.
-- **Mouse drag selection:** not supported; use `Ctrl+B` / `Ctrl+E`.
-
----
-
-## License
-
-TE (CP/M original) — Copyright © 2015–2021 Miguel Garcia / FloppySoftware  
-TE-86 (MS-DOS port) — Copyright © 2024–2026 Mickey W. Lawless
-
-Licensed under the **GNU General Public License v2 or later**.  See
-`COPYING` or <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
+| File | Purpose |
+|------|---------|
+| `te.h` | Global definitions, config macros, prototypes |
+| `te_keys.h` | Key code constants |
+| `te_main.c` | Entry point, global variable definitions |
+| `te_loop.c` | Main editor loop, key dispatch |
+| `te_edit.c` | Line editor (`BfEdit`), forced input buffer |
+| `te_file.c` | File load/save, backup |
+| `te_lines.c` | Line buffer operations (insert, delete, split, join) |
+| `te_misc.c` | Memory allocation, utility functions |
+| `te_keys.c` | Key translation (`GetKey`) |
+| `te_crt.c` | Console abstraction, video RAM output |
+| `te_ui.c` | Screen layout, menus, syntax highlighting, file browser |
+| `te_mouse.c` | INT 33h mouse driver interface |
+| `te_macro.c` | Macro file execution |
+| `te_error.c` | Error message helpers |
+| `te_conf.c` | Configuration block, save/load |
+| `TE-86.CFG` | Runtime configuration (binary, generated by editor) |
 
 ---
 
-## Changelog
+## Credits
 
-### TE-86 v1.0 (2026)
+Original TE for CP/M by **Miguel Garcia / FloppySoftware**  
+`https://github.com/floppysoftware/te`
 
-This is the first versioned release of the MS-DOS port.  All changes below are
-relative to the original CP/M TE source by Miguel Garcia.
-
-#### New Features
-
-**Direct video RAM output (`te_crt.c`)**
-- All character output now uses `VidPoke()` — direct writes to video RAM via
-  far pointer — replacing the BIOS TTY `putch()` call that ignored text
-  attributes entirely.
-- Video segment is auto-detected at startup by reading BIOS data area byte
-  `0040:0049`: mode 7 selects MDA/Hercules segment `0xB000`; all other modes
-  use CGA/EGA/VGA segment `0xB800`.
-- `CrtSetAttr()`, `CrtClearLine()`, and `CrtClearEol()` all honour the current
-  attribute, so colour and mono highlight changes are rendered correctly on
-  every adapter type.
-
-**Syntax highlighting (`te_ui.c`, `te.h`)**
-- 8 languages detected automatically by file extension: C/C++, x86 Assembly,
-  BASIC, Pascal, FORTRAN, PL/I, COBOL, PL/M.
-- 6 token categories coloured per language: keywords, string literals,
-  comments, numbers, preprocessor directives, operators.
-- Full colour mode for CGA/EGA/VGA; bold/underline monochrome mode for
-  MDA/Hercules adapters.
-- Persistent block-comment state (`hl_in_comment`) tracked across lines so
-  multi-line `/* ... */` blocks render correctly.
-- Toggle on/off and switch colour/mono via the Config menu.
-- Language name shown in bottom-right status bar while a file is open.
-
-**Mouse support (`te_mouse.c`)**
-- INT 33h mouse driver detected at startup; editor runs normally if no driver
-  is present.
-- Left-click moves the text cursor to the clicked position.
-- Right-click opens the Cut / Copy / Paste context menu.
-- Mouse cursor auto-hidden during screen redraws via nested `MouseHide()` /
-  `MouseShow()` calls.
-
-**Context menu (`te_ui.c`, `te_loop.c`)**
-- `Ctrl+R` or right-click opens a small popup box with Copy, Cut, and Paste
-  options, drawn near the cursor or click position.
-- Keyboard: Up/Down to navigate, Enter to confirm, Esc to cancel; `C`, `X`,
-  `V` as direct shortcuts.
-- Mouse: hover highlights items, left-click selects, click outside cancels.
-- Operates on the active block selection if one is set, otherwise on the
-  current line.
-
-**File Browser (`te_ui.c`)**
-- Scrollable three-column graphical file-picker invoked from `Open` in the
-  main menu.
-- Arrow-key navigation; Enter selects file or enters subdirectory; Esc returns
-  to manual filename prompt.
-
-**Block selection (`te_loop.c`, `te_keys.c`)**
-- `Ctrl+B` marks block start, `Ctrl+E` marks block end, `Ctrl+U` clears.
-- Selected lines highlighted in reverse video.
-- Block shortcuts hardcoded in `GetKey()` before the `cf_keys[]` table scan so
-  they cannot be overridden by a saved `.CFG` file.
-
-**Configuration system extensions (`te_conf.c`)**
-- Config block extended from 138 bytes (v1/v2) → 141 bytes (v3) → 142 bytes
-  (v4).
-- v3 fields: `cf_lnum_show` (line number visibility), `cf_hl_enable`
-  (highlighting toggle), `cf_hl_mono` (monochrome highlight mode).
-- v4 field: `cf_hard_tabs` (preserve literal ASCII 0x09 tab characters).
-- `CfLoad()` is backward-compatible: new fields fall back to compiled-in
-  defaults when loading an older config file.
-- File line limit (`cf_mx_lines`) raised from 512 → 6000.
-
-**Hard tab support (`te_file.c`, `te_conf.c`)**
-- When `cf_hard_tabs` is on, ASCII 0x09 bytes are stored in the line buffer
-  unchanged rather than expanded to spaces on load, and are written back as-is
-  on save.
-- Toggle via Config menu option **E**.
-
-**Auto-indent and auto-list**
-- Auto-indent: new lines created with Enter copy the leading whitespace of the
-  current line.
-- Auto-list: when the current line begins with a recognised bullet character,
-  Enter starts the next line with the same bullet.  Bullet characters are
-  configurable.
-
-**C-language bracket completion**
-- When C-lang complete is on, typing `{`, `(`, or `[` automatically inserts
-  the matching closing character.
-
-**Ruler display**
-- Full-width ruler line below the title bar shows column positions and tab
-  stop markers.  Both characters are configurable.
-
-**Line number gutter**
-- Line numbers displayed in a configurable-width left gutter.
-- Gutter width (0–6 digits) and separator character are configurable.
-- When hidden (width 0), the gutter collapses completely so more text is
-  visible.
-
-**Tab width 1–10**
-- Tab expansion width configurable from 1 to 10 spaces (Config option 1).
-
-**TECF config patcher (`tecf.c`)**
-- Standalone utility that patches all configuration values directly inside the
-  `.EXE` binary without recompilation.
-
-#### Bug Fixes
-
-- **"Line too long" crash on load** — Lines wider than 255 characters are now
-  silently truncated with a one-time warning instead of aborting the load.
-- **Colour attributes ignored** — `putch()` uses BIOS TTY output which ignores
-  the text attribute register; replaced with direct video RAM writes.
-- **Line length coupled to screen width** — `ln_max` is now the hard constant
-  255 rather than being derived from `cf_cols`, so files with long lines load
-  correctly regardless of the configured screen width.
-- **Mouse click jumps to bottom of file** — drag events fired continuously
-  while the mouse button was held, flooding the event queue with block-extend
-  codes that clamped to the last line.  All drag logic removed; only rising-
-  edge click events are generated.
-- **Context menu body never executed** — the `K_CTX_MENU` / `K_MOUSE_CTX`
-  handler body in `te_loop.c` was wrapped in `#if OPT_BLOCK`, causing
-  `CtxMenu()` to never be called.  The outer guard was removed.
-- **Context menu instantly dismissed on right-click** — the mouse button was
-  still physically held when the menu's cancel-check loop first ran.  A
-  right-button release wait was added before the menu is drawn.
-- **Context menu border overrun** — `CTX_W` was 10 but the labels are 6
-  characters wide making each row 8 characters; the top and bottom borders drew
-  2 extra dashes past the sides of the box.  `CTX_W` corrected to 8.
-- **Ctrl+R swallowed by line editor** — `K_CTX_MENU` was missing from
-  `BfEdit()`'s break-out switch; the key was consumed in the inner loop and
-  never reached `Loop()`.
-- **Ctrl+B jumps to end of file** — `cf_keys[7] = 2` mapped Ctrl+B to
-  `K_BOTTOM` (go to file bottom) in the key table.  Ctrl+B, Ctrl+E, and
-  Ctrl+U are now hardcoded in `GetKey()` before the table scan.
-- **`ms_event_*` multiple-definition error** — the four `ms_event_*` globals
-  were defined twice in `te_mouse.c` after refactoring; duplicate definitions
-  removed.
+DOS port by **Mickey W. Lawless**  
+`https://github.com/mickeylawless88/te-86`
